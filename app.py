@@ -10,47 +10,68 @@ app = Flask(__name__)
 RU_URL = "https://ru.fw.iffarroupilha.edu.br/"
 automation_lock = threading.Lock()
 
+
 def executar_agendamentos(usuario, senha, datas):
     """
     Automatiza o acesso ao RU usando Playwright.
-    IMPORTANTE: os seletores podem precisar de ajuste conforme alterações
-    no sistema do RU. O código não tenta contornar CAPTCHA, 2FA ou
-    outros mecanismos de segurança.
     """
     resultados = []
 
-   with sync_playwright() as p:
-    browser = p.chromium.launch(
-        headless=True,
-        args=["--no-sandbox"]
-    )
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox"]
+        )
 
-    page = browser.new_page(
-        viewport={"width": 1365, "height": 900}
-    )
+        page = browser.new_page(
+            viewport={"width": 1365, "height": 900}
+        )
+
         try:
-            page.goto(RU_URL, wait_until="domcontentloaded", timeout=30000)
+            page.goto(
+                RU_URL,
+                wait_until="domcontentloaded",
+                timeout=30000
+            )
 
             # Login
             page.get_by_label("Nome de usuário").fill(usuario)
             page.get_by_label("Senha").fill(senha)
-            page.get_by_role("button", name=re.compile(r"Entrar", re.I)).click()
 
-            page.wait_for_load_state("domcontentloaded", timeout=30000)
+            page.get_by_role(
+                "button",
+                name=re.compile(r"Entrar", re.I)
+            ).click()
 
-            # Aguarda a área autenticada aparecer.
-            page.get_by_text(re.compile(r"Agendamento", re.I)).first.wait_for(
-                state="visible", timeout=30000
+            page.wait_for_load_state(
+                "domcontentloaded",
+                timeout=30000
             )
 
-            # Abre Agendamento.
-            page.get_by_text(re.compile(r"Agendamento", re.I)).first.click()
+            # Aguarda a área autenticada aparecer
+            page.get_by_text(
+                re.compile(r"Agendamento", re.I)
+            ).first.wait_for(
+                state="visible",
+                timeout=30000
+            )
+
+            # Abre Agendamento
+            page.get_by_text(
+                re.compile(r"Agendamento", re.I)
+            ).first.click()
+
             page.wait_for_timeout(1500)
 
             for data in datas:
                 try:
                     agendar_um_dia(page, data)
-                    resultados.append({"data": data, "status": "ok"})
+
+                    resultados.append({
+                        "data": data,
+                        "status": "ok"
+                    })
+
                 except Exception as exc:
                     resultados.append({
                         "data": data,
@@ -59,8 +80,6 @@ def executar_agendamentos(usuario, senha, datas):
                     })
 
         finally:
-            # Mantém o navegador aberto por alguns segundos para o usuário
-            # conseguir visualizar o resultado.
             page.wait_for_timeout(3000)
             browser.close()
 
@@ -851,8 +870,11 @@ def agendar():
     finally:
         automation_lock.release()
 
-
 if __name__ == "__main__":
     print("Agendador RU iniciado.")
-    print("Abra http://127.0.0.1:5000 no navegador.")
-    app.run(host="127.0.0.1", port=5000, debug=False)
+
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "5000")),
+        debug=False
+    )
