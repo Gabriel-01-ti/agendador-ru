@@ -20,7 +20,9 @@ def executar_agendamentos(usuario, senha, datas):
     resultados = []
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+    browser = p.chromium.launch(
+    headless=True,
+    args=["--no-sandbox"])
         page = browser.new_page(viewport={"width": 1365, "height": 900})
 
         try:
