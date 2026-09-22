@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendador RU - IFFar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <section class="card">
+            <div class="header">
+                <div class="logo">RU</div>
+                <div>
+                    <h1>Agendador do RU</h1>
+                    <p>Agende seus almoços selecionando os dias.</p>
+                </div>
+            </div>
+
+            <form id="formAgendamento">
+                <label for="usuario">Nome de usuário</label>
+                <input id="usuario" type="text" autocomplete="username" required>
+
+                <label for="senha">Senha</label>
+                <input id="senha" type="password" autocomplete="current-password" required>
+
+                <label class="checkbox-inline">
+                    <input type="checkbox" id="lembrar">
+                    Lembrar usuário e senha neste computador
+                </label>
+
+                <div class="calendar-header">
+                    <button type="button" id="mesAnterior">‹</button>
+                    <h2 id="mesAno"></h2>
+                    <button type="button" id="mesProximo">›</button>
+                </div>
+
+                <div class="weekdays">
+                    <span>DOM</span><span>SEG</span><span>TER</span>
+                    <span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span>
+                </div>
+
+                <div id="calendario" class="calendar"></div>
+
+                <div class="selected-box">
+                    <strong>Dias selecionados:</strong>
+                    <span id="contador">0</span>
+                    <div id="selecionados" class="chips"></div>
+                </div>
+
+                <button id="btnAgendar" class="primary" type="submit">
+                    Agendar almoços
+                </button>
+            </form>
+
+            <div id="status" class="status hidden"></div>
+
+            <p class="warning">
+                A senha é usada somente para a automação local. Não coloque sua
+                senha em páginas hospedadas publicamente. Esta versão não
+                contorna CAPTCHA ou autenticação adicional. Se marcar "Lembrar
+                usuário e senha", eles ficam salvos sem criptografia no
+                navegador deste computador (localStorage) — não use essa opção
+                em um computador compartilhado.
+            </p>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
