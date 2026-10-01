@@ -62,3 +62,11 @@ Workflows agendados em repositórios públicos podem ser desativados após 60 di
 Se o serviço do WhatsApp falhar, as reservas continuam usando os dias predefinidos. A entrega do WhatsApp e o login real no RU só podem ser confirmados depois de configurar sua conta e executar uma verificação real autorizada.
 
 Fontes: [GitHub: gratuidade](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [GitHub: limites do agendamento](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule), [CallMeBot](https://www.callmebot.com/blog/free-api-whatsapp-messages/).
+
+## Teste de reserva real em qualquer dia
+
+Para testar a automação completa agora, abra Actions → **Teste real de reserva → Run workflow**. Informe no campo `data_almoco` a data de um almoço futuro, no formato `AAAA-MM-DD`, e execute. O GitHub usará a conta salva nos Secrets e tentará reservar **somente esse almoço**, imediatamente, mesmo fora do domingo e do horário da rotina. Não é uma simulação e não depende do CallMeBot.
+
+Escolha uma data em que pretende almoçar. O RU pode recusar se a data ainda não estiver liberada. Um teste verde com **RESERVA CONFIRMADA PELO RU** indica que o site apresentou confirmação. Confira também diretamente no RU. Um teste vermelho não confirma ausência de reserva: confira a conta antes de repetir.
+
+O teste grava seu início antes de acessar o RU, não repete automaticamente a mesma data e a rotina de domingo pula datas que já tiveram teste iniciado. O painel semanal mostra o status dos testes. Em falha ou interrupção, confira o RU e reserve manualmente se necessário. A execução manual de teste não altera os dias predefinidos nem os horários de domingo.

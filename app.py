@@ -27,22 +27,24 @@ def executar_agendamentos(usuario, senha, datas, deadline=None):
 
         try:
             page.goto(RU_URL, wait_until="domcontentloaded", timeout=30000)
-
+        
             # Login
             page.get_by_label("Nome de usuário").fill(usuario)
             page.get_by_label("Senha").fill(senha)
             page.get_by_role("button", name=re.compile(r"Entrar", re.I)).click()
-
+        
             page.wait_for_load_state("domcontentloaded", timeout=30000)
-
+        
             # Aguarda a área autenticada aparecer.
             page.get_by_text(re.compile(r"Agendamento", re.I)).first.wait_for(
                 state="visible", timeout=30000
             )
-
+        
             # Abre Agendamento.
             page.get_by_text(re.compile(r"Agendamento", re.I)).first.click()
             page.wait_for_timeout(1500)
+        
+        
 
             for data in datas:
                 if deadline is not None and weekly.now() >= deadline:
@@ -876,9 +878,10 @@ def semana():
     try:
         row = weekly.state(week)
         defaults, history = weekly.defaults(), weekly.history()
+        reservation_tests = weekly.reservation_test_history()
     except RuntimeError as exc:
         return render_template("setup.html", error=str(exc))
-    return render_template("weekly.html", defaults=defaults, row=row, history=history,
+    return render_template("weekly.html", defaults=defaults, row=row, history=history, reservation_tests=reservation_tests,
                            week=week.isoformat(), booking=weekly.hour("BOOK_TIME", "15:00").strftime("%H:%M"),
                            reminder=weekly.hour("REMINDER_TIME", "09:00").strftime("%H:%M"))
 

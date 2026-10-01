@@ -66,6 +66,7 @@ def db():
     try:
         conn.execute('CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, days TEXT NOT NULL)')
         conn.execute('CREATE TABLE IF NOT EXISTS weeks (week TEXT PRIMARY KEY, days TEXT, reminder TEXT, status TEXT, results TEXT)')
+        conn.execute('CREATE TABLE IF NOT EXISTS reservation_tests (day TEXT PRIMARY KEY, status TEXT NOT NULL, results TEXT)')
         conn.execute('INSERT OR IGNORE INTO settings VALUES (1, ?)', (json.dumps([0,1,2,3,4]),))
         conn.commit()
         yield conn
@@ -119,7 +120,8 @@ def claim(week):
             return None
         days = json.loads(row['days']) if row['days'] is not None else json.loads(c.execute('SELECT days FROM settings WHERE id=1').fetchone()[0])
         c.execute("UPDATE weeks SET status='executando', days=? WHERE week=?", (json.dumps(days), week.isoformat()))
-        return [(week + timedelta(days=d)).isoformat() for d in days]
+        tested = {r['day'] for r in c.execute('SELECT day FROM reservation_tests')}
+        return [(week + timedelta(days=d)).isoformat() for d in days if (week + timedelta(days=d)).isoformat() not in tested]
 
 def finish(week, results):
     status = 'concluído' if all(x['status'] == 'ok' for x in results) else 'verificar no RU'
@@ -204,3 +206,30 @@ def send_callmebot(week):
         # A URL inclui a chave; nunca registrar a exceção original.
         raise RuntimeError('O WhatsApp não confirmou o envio. Verifique sua ativação no CallMeBot.') from None
     return 'aceito pelo CallMeBot; confira a entrega no WhatsApp'
+
+
+def claim_reservation_test(day):
+    """Grava antes da reserva real; um teste interrompido não deve ser repetido."""
+    with db() as c:
+        c.execute('BEGIN IMMEDIATE')
+        if c.execute('SELECT 1 FROM reservation_tests WHERE day=?', (day,)).fetchone():
+            raise ValueError('Já foi iniciado um teste para essa data. Confira o RU antes de repetir.')
+        from datetime import date
+        target = date.fromisoformat(day)
+        start = target - timedelta(days=target.weekday())
+        row = c.execute('SELECT status FROM weeks WHERE week=?', (start.isoformat(),)).fetchone()
+        if row and row['status']:
+            raise ValueError('A automação dessa semana já foi iniciada. Confira o RU antes de testar.')
+        c.execute("INSERT INTO reservation_tests(day,status) VALUES (?, 'executando')", (day,))
+
+
+def finish_reservation_test(day, results):
+    status = 'concluído' if results and all(x['status'] == 'ok' for x in results) else 'verificar no RU'
+    with db() as c:
+        c.execute('UPDATE reservation_tests SET status=?, results=? WHERE day=?', (status, json.dumps(results, ensure_ascii=False), day))
+    return status
+
+
+def reservation_test_history():
+    with db() as c:
+        return [dict(r) for r in c.execute('SELECT day,status FROM reservation_tests ORDER BY day DESC LIMIT 10')]
