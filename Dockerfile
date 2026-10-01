@@ -12,4 +12,4 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 10000
 
-CMD ["sh", "-c", "gunicorn --workers 1 --threads 4 --timeout 180 --bind 0.0.0.0:${PORT:-10000} app:app"]
+CMD ["python", "start.py"]

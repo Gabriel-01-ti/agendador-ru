@@ -1,0 +1,13 @@
+services:
+  agendador:
+    build: .
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    ports:
+      - "127.0.0.1:10000:10000"
+    volumes:
+      - ru-data:/data
+    shm_size: 1gb
+volumes:
+  ru-data:

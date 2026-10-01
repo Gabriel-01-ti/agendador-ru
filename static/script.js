@@ -6,36 +6,8 @@ const statusEl = document.getElementById("status");
 const btnAgendar = document.getElementById("btnAgendar");
 const usuarioEl = document.getElementById("usuario");
 const senhaEl = document.getElementById("senha");
-const lembrarEl = document.getElementById("lembrar");
-
-const CHAVE_CREDENCIAIS = "agendadorRuCredenciais";
-
-function carregarCredenciais() {
-    try {
-        const salvo = JSON.parse(localStorage.getItem(CHAVE_CREDENCIAIS) || "null");
-        if (salvo && salvo.usuario) {
-            usuarioEl.value = salvo.usuario;
-            senhaEl.value = salvo.senha || "";
-            lembrarEl.checked = true;
-        }
-    } catch (erro) {
-        // localStorage pode falhar (modo privado, etc.); ignora silenciosamente.
-    }
-}
-
-function salvarCredenciais(usuario, senha) {
-    try {
-        if (lembrarEl.checked) {
-            localStorage.setItem(CHAVE_CREDENCIAIS, JSON.stringify({ usuario, senha }));
-        } else {
-            localStorage.removeItem(CHAVE_CREDENCIAIS);
-        }
-    } catch (erro) {
-        // Ignora se localStorage não estiver disponível.
-    }
-}
-
-carregarCredenciais();
+// Remove a senha que versões antigas gravavam em texto puro.
+try { localStorage.removeItem("agendadorRuCredenciais"); } catch (_) {}
 
 let mesAtual = new Date();
 mesAtual.setDate(1);
@@ -151,7 +123,7 @@ document.getElementById("formAgendamento").addEventListener("submit", async (eve
     const senha = document.getElementById("senha").value;
     const datas = [...selecionados].sort();
 
-    if (!usuario || !senha) {
+    if ((usuario && !senha) || (!usuario && senha)) {
         mostrarStatus("Informe usuário e senha.");
         return;
     }
@@ -161,13 +133,12 @@ document.getElementById("formAgendamento").addEventListener("submit", async (eve
         return;
     }
 
-    salvarCredenciais(usuario, senha);
 
     btnAgendar.disabled = true;
     btnAgendar.textContent = "Executando...";
     mostrarStatus(
         "Abrindo o navegador e realizando os agendamentos. " +
-        "Não feche a janela do navegador automatizado."
+        "Acompanhe os resultados nesta página."
     );
 
     try {

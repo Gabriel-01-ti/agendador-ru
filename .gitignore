@@ -2,5 +2,4 @@
 data/
 debug_ru/
 __pycache__/
-.git/
-tests/
+*.sqlite*

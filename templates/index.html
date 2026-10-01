@@ -17,17 +17,14 @@
                 </div>
             </div>
 
+            <p><a href="/semana">Abrir programação semanal e resultados</a></p>
+            {% if saved_account %}<p>Deixe usuário e senha em branco para usar a conta salva no servidor.</p>{% else %}<p>Informe usuário e senha para reservar. A programação semanal aguarda configuração no servidor.</p>{% endif %}
             <form id="formAgendamento">
                 <label for="usuario">Nome de usuário</label>
-                <input id="usuario" type="text" autocomplete="username" required>
+                <input id="usuario" type="text" autocomplete="username">
 
                 <label for="senha">Senha</label>
-                <input id="senha" type="password" autocomplete="current-password" required>
-
-                <label class="checkbox-inline">
-                    <input type="checkbox" id="lembrar">
-                    Lembrar usuário e senha neste computador
-                </label>
+                <input id="senha" type="password" autocomplete="current-password">
 
                 <div class="calendar-header">
                     <button type="button" id="mesAnterior">‹</button>
@@ -55,14 +52,7 @@
 
             <div id="status" class="status hidden"></div>
 
-            <p class="warning">
-                A senha é usada somente para a automação local. Não coloque sua
-                senha em páginas hospedadas publicamente. Esta versão não
-                contorna CAPTCHA ou autenticação adicional. Se marcar "Lembrar
-                usuário e senha", eles ficam salvos sem criptografia no
-                navegador deste computador (localStorage) — não use essa opção
-                em um computador compartilhado.
-            </p>
+            <p class="warning">As credenciais não ficam salvas neste navegador. A conta para reservas automáticas é configurada nos segredos do servidor.</p>
         </section>
     </main>
 

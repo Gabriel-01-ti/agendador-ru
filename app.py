@@ -1,77 +1,56 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response, render_template_string
 from playwright.sync_api import sync_playwright
 import os
 import re
 import threading
 import time
+import hmac
+import weekly
 
 app = Flask(__name__)
 
 RU_URL = "https://ru.fw.iffarroupilha.edu.br/"
 automation_lock = threading.Lock()
 
-
-def executar_agendamentos(usuario, senha, datas):
+def executar_agendamentos(usuario, senha, datas, deadline=None):
     """
     Automatiza o acesso ao RU usando Playwright.
+    IMPORTANTE: os seletores podem precisar de ajuste conforme alterações
+    no sistema do RU. O código não tenta contornar CAPTCHA, 2FA ou
+    outros mecanismos de segurança.
     """
     resultados = []
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox"]
-        )
-
-        page = browser.new_page(
-            viewport={"width": 1365, "height": 900}
-        )
+        browser = p.chromium.launch(headless=os.environ.get("HEADLESS", "true").lower() != "false", args=["--no-sandbox"])
+        page = browser.new_page(viewport={"width": 1365, "height": 900})
 
         try:
-            page.goto(
-                RU_URL,
-                wait_until="domcontentloaded",
-                timeout=30000
-            )
+            page.goto(RU_URL, wait_until="domcontentloaded", timeout=30000)
 
             # Login
             page.get_by_label("Nome de usuário").fill(usuario)
             page.get_by_label("Senha").fill(senha)
+            page.get_by_role("button", name=re.compile(r"Entrar", re.I)).click()
 
-            page.get_by_role(
-                "button",
-                name=re.compile(r"Entrar", re.I)
-            ).click()
+            page.wait_for_load_state("domcontentloaded", timeout=30000)
 
-            page.wait_for_load_state(
-                "domcontentloaded",
-                timeout=30000
+            # Aguarda a área autenticada aparecer.
+            page.get_by_text(re.compile(r"Agendamento", re.I)).first.wait_for(
+                state="visible", timeout=30000
             )
 
-            # Aguarda a área autenticada aparecer
-            page.get_by_text(
-                re.compile(r"Agendamento", re.I)
-            ).first.wait_for(
-                state="visible",
-                timeout=30000
-            )
-
-            # Abre Agendamento
-            page.get_by_text(
-                re.compile(r"Agendamento", re.I)
-            ).first.click()
-
+            # Abre Agendamento.
+            page.get_by_text(re.compile(r"Agendamento", re.I)).first.click()
             page.wait_for_timeout(1500)
 
             for data in datas:
+                if deadline is not None and weekly.now() >= deadline:
+                    resultados.append({"data": data, "status": "erro", "mensagem": "Prazo de execução encerrado."})
+                    continue
                 try:
                     agendar_um_dia(page, data)
-
-                    resultados.append({
-                        "data": data,
-                        "status": "ok"
-                    })
-
+                    resultados.append({"data": data, "status": "ok"})
                 except Exception as exc:
                     resultados.append({
                         "data": data,
@@ -80,6 +59,8 @@ def executar_agendamentos(usuario, senha, datas):
                     })
 
         finally:
+            # Mantém o navegador aberto por alguns segundos para o usuário
+            # conseguir visualizar o resultado.
             page.wait_for_timeout(3000)
             browser.close()
 
@@ -92,6 +73,8 @@ def _dump_debug(page, data, motivo):
     Os arquivos ficam em uma pasta 'debug_ru' ao lado deste app.py.
     """
     try:
+        if os.environ.get("DEBUG_RU") != "true":
+            return
         pasta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug_ru")
         os.makedirs(pasta, exist_ok=True)
         ts = time.strftime("%Y%m%d-%H%M%S")
@@ -841,16 +824,83 @@ def agendar_um_dia(page, data):
 
 
 
+
+@app.before_request
+def proteger_painel():
+    if request.path == "/health" or request.path.startswith("/escolher/") or request.path.startswith("/static/"):
+        return
+    password = os.environ.get("ADMIN_PASSWORD", "")
+    if not password and request.path in ("/", "/agendar"):
+        # Compatibilidade com o serviço existente: só aceita credenciais
+        # digitadas, sem acesso à conta salva ou ao painel privado.
+        if request.method == "POST" and not request.is_json:
+            return jsonify({"erro": "Envie JSON."}), 415
+        return
+    if len(password) < 16:
+        return "Configure ADMIN_PASSWORD com pelo menos 16 caracteres.", 503
+    auth = request.authorization
+    if not auth or not hmac.compare_digest((auth.username or "").encode(), b"admin") or not hmac.compare_digest((auth.password or "").encode(), password.encode()):
+        return Response("Acesso restrito", 401, {"WWW-Authenticate": 'Basic realm="Agendador RU"'})
+    if request.method == "POST" and not request.is_json:
+        return jsonify({"erro": "Envie JSON."}), 415
+
+@app.after_request
+def cabecalhos(response):
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+@app.get("/health")
+def health():
+    return {"web": "ok"}  # Não indica disponibilidade do RU ou do worker.
+
+@app.route("/semana", methods=["GET", "POST"])
+def semana():
+    if request.method == "POST":
+        try:
+            weekly.set_defaults((request.get_json(silent=True) or {}).get("dias"))
+            return {"ok": True}
+        except ValueError as exc:
+            return {"erro": str(exc)}, 400
+    week = weekly.monday(weekly.now().date())
+    row = weekly.state(week)
+    return render_template("weekly.html", defaults=weekly.defaults(), row=row, history=weekly.history(),
+                           week=week.isoformat(), booking=weekly.hour("BOOK_TIME", "15:00").strftime("%H:%M"),
+                           reminder=weekly.hour("REMINDER_TIME", "09:00").strftime("%H:%M"))
+
+@app.route("/escolher/<token>", methods=["GET", "POST"])
+def escolher(token):
+    try:
+        week = weekly.token_week(token)
+        message = ""
+        if request.method == "POST":
+            days = [int(d) for d in request.form.getlist("dias")]
+            weekly.choose(week, days)
+            message = "Escolha salva. As reservas serão tentadas no domingo no horário informado."
+        row = weekly.state(week)
+        import json
+        days = json.loads(row["days"]) if row["days"] is not None else weekly.defaults()
+        return render_template("choose.html", days=days, week=week.strftime("%d/%m/%Y"),
+                               dates=[(week + __import__('datetime').timedelta(days=i)).strftime("%d/%m") for i in range(5)],
+                               message=message, booking=weekly.deadline(week).strftime("%d/%m às %H:%M"))
+    except ValueError as exc:
+        return str(exc), 400
+    except RuntimeError:
+        return "A programação semanal ainda não foi configurada.", 503
+
 @app.get("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", saved_account=bool(os.environ.get("ADMIN_PASSWORD")))
 
 
 @app.post("/agendar")
 def agendar():
     dados = request.get_json(silent=True) or {}
-    usuario = str(dados.get("usuario", "")).strip()
-    senha = str(dados.get("senha", ""))
+    saved_account = bool(os.environ.get("ADMIN_PASSWORD"))
+    usuario = str(dados.get("usuario", "")).strip() or (os.environ.get("RU_USER", "") if saved_account else "")
+    senha = str(dados.get("senha", "")) or (os.environ.get("RU_PASSWORD", "") if saved_account else "")
     datas = dados.get("datas", [])
 
     if not usuario or not senha:
@@ -859,22 +909,28 @@ def agendar():
     if not isinstance(datas, list) or not datas:
         return jsonify({"erro": "Selecione pelo menos um dia."}), 400
 
+    from datetime import date
+    try:
+        datas = sorted(set(datas))
+        if len(datas) > 31 or any(date.fromisoformat(d) < weekly.now().date() for d in datas):
+            raise ValueError()
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Informe datas válidas, a partir de hoje (máximo 31)."}), 400
+
     if not automation_lock.acquire(blocking=False):
         return jsonify({"erro": "Já existe uma automação em execução."}), 409
 
     try:
-        resultados = executar_agendamentos(usuario, senha, datas)
+        with weekly.execution_lock():
+            resultados = executar_agendamentos(usuario, senha, datas)
         return jsonify({"resultados": resultados})
     except Exception as exc:
         return jsonify({"erro": str(exc)}), 500
     finally:
         automation_lock.release()
 
+
 if __name__ == "__main__":
     print("Agendador RU iniciado.")
-
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", "5000")),
-        debug=False
-    )
+    print("Abra http://127.0.0.1:5000 no navegador.")
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=False)
