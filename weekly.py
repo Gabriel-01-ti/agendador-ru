@@ -51,9 +51,17 @@ def token_week(value, clock=None):
 
 @contextmanager
 def db():
-    folder = Path(os.environ.get('DATA_DIR', './data'))
-    folder.mkdir(mode=0o700, parents=True, exist_ok=True)
-    conn = sqlite3.connect(folder / 'weekly.sqlite', timeout=30)
+    import github_state
+    remote = github_state.configured()
+    snapshot, sha = github_state.read() if remote else (None, None)
+    if remote:
+        conn = sqlite3.connect(':memory:')
+        if snapshot is not None:
+            conn.deserialize(snapshot)
+    else:
+        folder = Path(os.environ.get('DATA_DIR', './data'))
+        folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+        conn = sqlite3.connect(folder / 'weekly.sqlite', timeout=30)
     conn.row_factory = sqlite3.Row
     try:
         conn.execute('CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, days TEXT NOT NULL)')
@@ -62,6 +70,10 @@ def db():
         conn.commit()
         yield conn
         conn.commit()
+        if remote:
+            updated = conn.serialize()
+            if updated != snapshot:
+                github_state.write(updated, sha)
     except Exception:
         conn.rollback()
         raise
@@ -137,6 +149,8 @@ def execution_lock():
 def send_reminder(week):
     from urllib.request import Request, urlopen
     from urllib.parse import urlencode
+    if os.environ.get('WHATSAPP_PROVIDER', 'callmebot') == 'callmebot':
+        return send_callmebot(week)
     required = ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_WHATSAPP_FROM', 'WHATSAPP_TO', 'TWILIO_CONTENT_SID', 'PUBLIC_URL']
     if any(not os.environ.get(k) for k in required):
         raise RuntimeError('Configure as variáveis de WhatsApp e PUBLIC_URL.')
@@ -162,3 +176,28 @@ def send_reminder(week):
 def history():
     with db() as c:
         return [dict(row) for row in c.execute('SELECT * FROM weeks ORDER BY week DESC LIMIT 12')]
+
+
+def send_callmebot(week):
+    """API gratuita para o próprio número, após autorização no WhatsApp."""
+    from urllib.request import Request, urlopen
+    from urllib.parse import urlencode
+    import re
+    phone = os.environ.get('CALLMEBOT_PHONE', '')
+    key = os.environ.get('CALLMEBOT_APIKEY', '')
+    public = os.environ.get('PUBLIC_URL', '').rstrip('/')
+    if not re.fullmatch(r'\+?[0-9]{10,15}', phone) or not key or not public.startswith('https://'):
+        raise RuntimeError('Configure CALLMEBOT_PHONE, CALLMEBOT_APIKEY e PUBLIC_URL.')
+    text = ('RU: escolha os dias da semana de ' + week.strftime('%d/%m/%Y') + '. '
+            'A escolha fecha domingo às ' + hour('BOOK_TIME', '15:00').strftime('%H:%M') +
+            ' (Brasília). Sem resposta, usaremos os dias predefinidos. ' + public + '/escolher/' + token(week))
+    query = urlencode({'phone': phone, 'apikey': key, 'text': text})
+    try:
+        with urlopen(Request('https://api.callmebot.com/whatsapp.php?' + query), timeout=25) as response:
+            result = response.read(20_000).decode('utf-8', errors='replace')
+        if 'message queued' not in result.lower() and 'message sent' not in result.lower():
+            raise RuntimeError()
+    except Exception:
+        # A URL inclui a chave; nunca registrar a exceção original.
+        raise RuntimeError('O WhatsApp não confirmou o envio. Verifique sua ativação no CallMeBot.') from None
+    return 'aceito pelo CallMeBot; confira a entrega no WhatsApp'

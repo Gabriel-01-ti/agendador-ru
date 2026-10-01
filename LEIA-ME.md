@@ -1,3 +1,5 @@
+PLANO GRATUITO: leia GRATUITO.md. No Render Free, mantenha AUTOMATION_ENABLED=false e execute a programação pelo GitHub Actions. As instruções de worker contínuo abaixo se aplicam somente a servidores sempre ativos com persistência.
+
 # Agendador semanal do RU — IFFar Frederico Westphalen
 
 Projeto adaptado do seu Documents.rar. Uso pessoal, uma conta do RU por instalação.

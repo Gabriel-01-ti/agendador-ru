@@ -10,7 +10,7 @@ from app import app
 class WebTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
-        self.env=patch.dict(os.environ,{'DATA_DIR':self.tmp.name,'APP_SECRET':'s'*40,'ADMIN_PASSWORD':'admin-secret-123456'})
+        self.env=patch.dict(os.environ,{'DATA_DIR':self.tmp.name,'APP_SECRET':'s'*40,'ADMIN_PASSWORD':'admin-secret-123456','STATE_BACKEND':'local','AUTOMATION_ENABLED':'true'})
         self.env.start()
         self.client=app.test_client()
         self.headers={'Authorization':'Basic '+base64.b64encode(b'admin:admin-secret-123456').decode()}
@@ -47,8 +47,19 @@ class LegacyDeploymentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {'ADMIN_PASSWORD':'','DATA_DIR':folder,'RU_USER':'saved-user','RU_PASSWORD':'saved-password'}):
             client=app.test_client()
             self.assertEqual(client.get('/').status_code,200)
-            self.assertEqual(client.get('/semana').status_code,503)
+            self.assertEqual(client.get('/semana').status_code,200)
+            self.assertIn('Vamos configurar'.encode(),client.get('/semana').data)
+            self.assertEqual(client.post('/semana',json={'dias':[0]}).status_code,503)
             response=client.post('/agendar',json={'datas':['2099-10-05']})
             self.assertEqual(response.status_code,400)
             self.assertNotIn(b'saved-password',response.data)
             self.assertNotIn(b'saved-user',client.get('/').data)
+
+class FreeSetupTests(unittest.TestCase):
+    def test_protected_panel_refuses_transient_settings(self):
+        with patch.dict(os.environ, {'ADMIN_PASSWORD':'long-admin-password','AUTOMATION_ENABLED':'false','STATE_BACKEND':''}):
+            c=app.test_client()
+            headers={'Authorization':'Basic '+base64.b64encode(b'admin:long-admin-password').decode()}
+            self.assertEqual(c.get('/semana').status_code,401)
+            self.assertIn('persistência'.encode(),c.get('/semana',headers=headers).data)
+            self.assertEqual(c.post('/semana',json={'dias':[0]},headers=headers).status_code,503)

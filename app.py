@@ -837,7 +837,9 @@ def proteger_painel():
             return jsonify({"erro": "Envie JSON."}), 415
         return
     if len(password) < 16:
-        return "Configure ADMIN_PASSWORD com pelo menos 16 caracteres.", 503
+        if request.path == "/semana" and request.method == "GET":
+            return render_template("setup.html")
+        return jsonify({"erro": "Configure a senha privada do painel no Render. Abra /semana para ver as instruções."}), 503
     auth = request.authorization
     if not auth or not hmac.compare_digest((auth.username or "").encode(), b"admin") or not hmac.compare_digest((auth.password or "").encode(), password.encode()):
         return Response("Acesso restrito", 401, {"WWW-Authenticate": 'Basic realm="Agendador RU"'})
@@ -859,14 +861,24 @@ def health():
 @app.route("/semana", methods=["GET", "POST"])
 def semana():
     if request.method == "POST":
+        if os.environ.get("STATE_BACKEND") != "github" and os.environ.get("AUTOMATION_ENABLED", "false").lower() != "true":
+            return {"erro": "Configure a persistência no GitHub antes de salvar os dias."}, 503
         try:
             weekly.set_defaults((request.get_json(silent=True) or {}).get("dias"))
             return {"ok": True}
         except ValueError as exc:
             return {"erro": str(exc)}, 400
+        except RuntimeError as exc:
+            return {"erro": str(exc)}, 503
+    if os.environ.get("STATE_BACKEND") != "github" and os.environ.get("AUTOMATION_ENABLED", "false").lower() != "true":
+        return render_template("setup.html", error="Configure a persistência no GitHub antes de salvar os dias no Render gratuito.")
     week = weekly.monday(weekly.now().date())
-    row = weekly.state(week)
-    return render_template("weekly.html", defaults=weekly.defaults(), row=row, history=weekly.history(),
+    try:
+        row = weekly.state(week)
+        defaults, history = weekly.defaults(), weekly.history()
+    except RuntimeError as exc:
+        return render_template("setup.html", error=str(exc))
+    return render_template("weekly.html", defaults=defaults, row=row, history=history,
                            week=week.isoformat(), booking=weekly.hour("BOOK_TIME", "15:00").strftime("%H:%M"),
                            reminder=weekly.hour("REMINDER_TIME", "09:00").strftime("%H:%M"))
 

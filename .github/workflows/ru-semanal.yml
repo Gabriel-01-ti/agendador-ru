@@ -1,0 +1,55 @@
+name: Programação gratuita do RU
+on:
+  schedule:
+    # UTC: domingos 09:17, 14:17, 15:17 e 15:37 em Brasília.
+    - cron: '17 12,17,18 * * 0'
+    - cron: '37 18 * * 0'
+  workflow_dispatch:
+    inputs:
+      verificar_apenas:
+        description: Verificar configuração sem enviar mensagens ou fazer reservas
+        type: boolean
+        default: true
+permissions:
+  contents: write
+concurrency:
+  group: ru-semanal
+  cancel-in-progress: false
+jobs:
+  programacao:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SCHEDULE_ENABLED: ${{ secrets.SCHEDULE_ENABLED }}
+      RU_USER: ${{ secrets.RU_USER }}
+      RU_PASSWORD: ${{ secrets.RU_PASSWORD }}
+      APP_SECRET: ${{ secrets.APP_SECRET }}
+      STATE_BACKEND: github
+      STATE_REPOSITORY: ${{ github.repository }}
+      STATE_TOKEN: ${{ github.token }}
+      CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
+      CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+      WHATSAPP_PROVIDER: callmebot
+      PUBLIC_URL: https://agendador-ru.onrender.com
+      DATA_DIR: /tmp/ru-state
+      REMINDER_TIME: '09:00'
+      BOOK_TIME: '15:00'
+      CUTOFF_TIME: '15:55'
+      HEADLESS: 'true'
+      CHECK_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.verificar_apenas && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependências
+        if: env.SCHEDULE_ENABLED == 'true'
+        run: |
+          python -m pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: Processar domingo ou verificar configuração
+        if: env.SCHEDULE_ENABLED == 'true'
+        run: python scheduled.py
+      - name: Configuração pendente
+        if: env.SCHEDULE_ENABLED != 'true'
+        run: echo 'Cadastre os Secrets e SCHEDULE_ENABLED=true para ativar a programação.'

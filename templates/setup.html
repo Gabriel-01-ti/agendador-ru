@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Configurar programação — RU</title><link rel="stylesheet" href="/static/style.css"></head>
+<body><main class="container"><section class="card">
+<h1>Vamos configurar sua programação</h1>
+<p>O site está disponível. As reservas automáticas ainda dependem da configuração privada da sua conta.</p>
+{% if error %}<p role="alert">{{error}}</p>{% endif %}
+<h2>Plano gratuito</h2>
+<p>O Render gratuito serve as páginas. O GitHub Actions executa a programação aos domingos, mesmo quando o site está suspenso. Os dias escolhidos ficam cifrados no GitHub.</p>
+<ol>
+<li>No Render, abra <strong>Environment</strong> e cadastre <strong>ADMIN_PASSWORD</strong> com pelo menos 16 caracteres. É uma senha nova para o painel; o usuário do painel será <strong>admin</strong>.</li>
+<li>Cadastre <strong>APP_SECRET</strong> com pelo menos 32 caracteres aleatórios. Use o mesmo valor nos Secrets do GitHub.</li>
+<li>Configure a persistência: <strong>STATE_BACKEND=github</strong>, <strong>STATE_REPOSITORY=Gabriel-01-ti/agendador-ru</strong> e <strong>STATE_TOKEN</strong> com um token privado que permita ler e gravar o conteúdo apenas desse repositório.</li>
+<li>No GitHub, em <strong>Settings → Secrets and variables → Actions</strong>, cadastre <strong>RU_USER</strong>, <strong>RU_PASSWORD</strong>, <strong>APP_SECRET</strong> e, ao terminar, <strong>SCHEDULE_ENABLED=true</strong>.</li>
+<li>Para receber o aviso gratuito no WhatsApp, ative o CallMeBot para seu próprio número e cadastre <strong>CALLMEBOT_PHONE</strong> e <strong>CALLMEBOT_APIKEY</strong> nos Secrets do GitHub.</li>
+</ol>
+<p>Salve no Render e aguarde a atualização. Depois entre neste painel com <strong>admin</strong> e sua nova senha para escolher os dias predefinidos.</p>
+<p>O GitHub pode atrasar uma execução agendada. O sistema tenta reservar antes das 16h e encerra novas tentativas às 15h55, no horário de Brasília. A automação só fica ativa depois de cadastrar os Secrets e habilitar a programação.</p>
+<p><a href="https://github.com/Gabriel-01-ti/agendador-ru/blob/main/GRATUITO.md">Abrir instruções completas</a> · <a href="/">Agendamento manual</a></p>
+</section></main></body></html>

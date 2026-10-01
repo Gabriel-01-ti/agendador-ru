@@ -1,3 +1,5 @@
+PLANO GRATUITO: leia GRATUITO.md. No Render Free, mantenha AUTOMATION_ENABLED=false e execute a programação pelo GitHub Actions. As instruções de worker contínuo abaixo se aplicam somente a servidores sempre ativos com persistência.
+
 AGENDADOR RU — versão semanal
 
 Leia LEIA-ME.md para instalar e ativar a rotina semanal.
