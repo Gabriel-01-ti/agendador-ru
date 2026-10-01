@@ -43,7 +43,8 @@ class GitHubStateTests(unittest.TestCase):
         weekly.state(week)
         self.conflict=True
         calls=[]
-        worker.tick(datetime(2026,10,4,15,tzinfo=weekly.TZ),lambda *args,**kwargs:calls.append(args))
+        with self.assertRaises(RuntimeError):
+            worker.tick(datetime(2026,10,4,15,tzinfo=weekly.TZ),lambda *args,**kwargs:calls.append(args))
         self.assertEqual(calls,[])
         self.conflict=False
         self.assertIsNone(weekly.state(week)['status'])

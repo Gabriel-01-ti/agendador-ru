@@ -130,6 +130,9 @@ def reminder_update(week, status):
     with db() as c:
         c.execute('UPDATE weeks SET reminder=? WHERE week=?', (status, week.isoformat()))
 
+class ExecutionBusy(RuntimeError):
+    pass
+
 @contextmanager
 def execution_lock():
     """Lock compartilhado entre o worker e o servidor web (Linux)."""
@@ -140,7 +143,7 @@ def execution_lock():
         try:
             fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            raise RuntimeError('Já existe um agendamento em execução.')
+            raise ExecutionBusy('Já existe um agendamento em execução.')
         try:
             yield
         finally:

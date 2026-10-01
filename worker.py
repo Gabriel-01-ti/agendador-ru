@@ -47,7 +47,7 @@ def tick(clock=None, runner=None, sender=None):
                 results = [{'data': d, 'status': 'erro', 'mensagem': 'Execução interrompida. Confira o RU antes de repetir.'} for d in dates]
             weekly.finish(week, results)
             log.info('Semana %s processada. Consulte o painel.', week)
-    except RuntimeError:
+    except weekly.ExecutionBusy:
         log.info('Outra execução está ativa; aguardando o próximo ciclo.')
 
 if __name__ == '__main__':

@@ -885,6 +885,8 @@ def semana():
 @app.route("/escolher/<token>", methods=["GET", "POST"])
 def escolher(token):
     try:
+        if os.environ.get("STATE_BACKEND") != "github" and os.environ.get("AUTOMATION_ENABLED", "false").lower() != "true":
+            raise RuntimeError("Persistência não configurada.")
         week = weekly.token_week(token)
         message = ""
         if request.method == "POST":

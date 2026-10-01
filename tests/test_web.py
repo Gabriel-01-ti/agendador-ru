@@ -63,3 +63,11 @@ class FreeSetupTests(unittest.TestCase):
             self.assertEqual(c.get('/semana').status_code,401)
             self.assertIn('persistência'.encode(),c.get('/semana',headers=headers).data)
             self.assertEqual(c.post('/semana',json={'dias':[0]},headers=headers).status_code,503)
+
+    def test_public_choice_refuses_transient_state(self):
+        with patch.dict(os.environ, {'APP_SECRET':'x'*40,'AUTOMATION_ENABLED':'false','STATE_BACKEND':''}), patch('weekly.now',return_value=datetime(2026,10,4,14,tzinfo=weekly.TZ)), patch('weekly.choose') as choose:
+            c=app.test_client()
+            url='/escolher/'+weekly.token(date(2026,10,5))
+            self.assertEqual(c.get(url).status_code,503)
+            self.assertEqual(c.post(url,data={'dias':['0']}).status_code,503)
+            choose.assert_not_called()

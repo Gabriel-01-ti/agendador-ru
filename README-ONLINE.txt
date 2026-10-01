@@ -1,9 +1,6 @@
-PLANO GRATUITO: leia GRATUITO.md. No Render Free, mantenha AUTOMATION_ENABLED=false e execute a programação pelo GitHub Actions. As instruções de worker contínuo abaixo se aplicam somente a servidores sempre ativos com persistência.
+AGENDADOR RU — plano gratuito
 
-AGENDADOR RU — versão semanal
-
-Leia LEIA-ME.md para instalar e ativar a rotina semanal.
-O envio para o GitHub mantém o modo manual e não ativa a rotina automaticamente.
-No Render, use Docker e python start.py, configure segredos e disco em /data.
-Depois defina AUTOMATION_ENABLED=true.
+Leia GRATUITO.md para configurar Render Free, GitHub Actions e WhatsApp pessoal pelo CallMeBot.
+Mantenha AUTOMATION_ENABLED=false no Render: a rotina acontece no GitHub.
+A programação só fica ativa após cadastrar os Secrets e SCHEDULE_ENABLED=true.
 Não grave senhas ou tokens reais no repositório.
