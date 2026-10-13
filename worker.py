@@ -10,12 +10,12 @@ log = logging.getLogger('worker')
 def tick(clock=None, runner=None, sender=None):
     clock = clock or weekly.now()
     if clock.weekday() != 6:
-        return
+        return 'fora do domingo'
     week = weekly.monday(clock.date())
     row = weekly.state(week)
     booking = weekly.deadline(week)
-    reminder = datetime.combine(clock.date(), weekly.hour('REMINDER_TIME', '09:00'), weekly.TZ)
-    if reminder <= clock < booking and not row['reminder']:
+    reminder = datetime.combine(clock.date(), weekly.hour('REMINDER_TIME', '08:00'), weekly.TZ)
+    if weekly.reminders_enabled() and reminder <= clock < booking and not row['reminder']:
         # Gravado antes do envio: resposta ambígua não causa mensagens duplicadas.
         weekly.reminder_update(week, 'enviando; se interrompido, verificar no provedor')
         try:
@@ -25,19 +25,23 @@ def tick(clock=None, runner=None, sender=None):
             weekly.reminder_update(week, 'falha; verificar configuração/entrega no provedor')
             log.error('Aviso não enviado. As reservas continuam programadas.')
     cutoff = datetime.combine(clock.date(), weekly.hour('CUTOFF_TIME', '15:55'), weekly.TZ)
-    if not booking <= clock < cutoff or row['status']:
-        return
+    if row['status']:
+        return 'já processada' if row['status'] == 'concluído' else row['status']
+    if clock < booking:
+        return 'antes das 09h'
+    if clock >= cutoff:
+        return 'prazo encerrado'
     if not os.environ.get('RU_USER') or not os.environ.get('RU_PASSWORD'):
         log.error('Configure RU_USER e RU_PASSWORD; nenhuma reserva realizada.')
-        return
+        return 'sem credenciais'
     try:
         with weekly.execution_lock():
             dates = weekly.claim(week)
             if dates is None:
-                return
+                return 'já processada'
             if not dates:
                 weekly.finish(week, [])
-                return
+                return 'concluído'
             if runner is None:
                 from app import executar_agendamentos
                 runner = executar_agendamentos
@@ -47,8 +51,10 @@ def tick(clock=None, runner=None, sender=None):
                 results = [{'data': d, 'status': 'erro', 'mensagem': 'Execução interrompida. Confira o RU antes de repetir.'} for d in dates]
             weekly.finish(week, results)
             log.info('Semana %s processada. Consulte o painel.', week)
+            return 'concluído' if all(x['status'] == 'ok' for x in results) else 'verificar no RU'
     except weekly.ExecutionBusy:
         log.info('Outra execução está ativa; aguardando o próximo ciclo.')
+        return 'ocupado'
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')

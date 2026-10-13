@@ -29,8 +29,7 @@ def validate_automation():
         raise ValueError('Configure ADMIN_PASSWORD com pelo menos 16 caracteres.')
     if not os.environ.get('RU_USER') or not os.environ.get('RU_PASSWORD'):
         raise ValueError('Configure RU_USER e RU_PASSWORD.')
-    if not weekly.hour('REMINDER_TIME','09:00') < weekly.hour('BOOK_TIME','15:00') < weekly.hour('CUTOFF_TIME','15:55') < __import__('datetime').time(16):
-        raise ValueError('Horários devem obedecer: aviso < reserva < limite < 16:00.')
+    weekly.validate_schedule()
 
 if __name__ == '__main__':
     enabled = os.environ.get('AUTOMATION_ENABLED', 'false').lower() == 'true'

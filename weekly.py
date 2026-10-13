@@ -21,8 +21,23 @@ def hour(name, default):
 def monday(today):
     return today + timedelta(days=7 - today.weekday())
 
+def booking_time():
+    # Horário único para o painel e o runner; ignora BOOK_TIME antigo no Render.
+    return time(9)
+
+def reminders_enabled():
+    return os.environ.get('REMINDER_ENABLED', 'false').lower() == 'true'
+
+def validate_schedule():
+    booking = booking_time()
+    cutoff = hour('CUTOFF_TIME', '15:55')
+    if not booking < cutoff < time(16):
+        raise ValueError('O limite de execução precisa ser depois das 09h e antes das 16h.')
+    if reminders_enabled() and not hour('REMINDER_TIME', '08:00') < booking:
+        raise ValueError('O lembrete opcional precisa ser antes das 09h.')
+
 def deadline(week):
-    return datetime.combine(week - timedelta(days=1), hour('BOOK_TIME', '15:00'), TZ)
+    return datetime.combine(week - timedelta(days=1), booking_time(), TZ)
 
 def secret():
     value = os.environ.get('APP_SECRET', '')
@@ -194,7 +209,7 @@ def send_callmebot(week):
     if not re.fullmatch(r'\+?[0-9]{10,15}', phone) or not key or not public.startswith('https://'):
         raise RuntimeError('Configure CALLMEBOT_PHONE, CALLMEBOT_APIKEY e PUBLIC_URL.')
     text = ('RU: escolha os dias da semana de ' + week.strftime('%d/%m/%Y') + '. '
-            'A escolha fecha domingo às ' + hour('BOOK_TIME', '15:00').strftime('%H:%M') +
+            'A escolha fecha domingo às ' + booking_time().strftime('%H:%M') +
             ' (Brasília). Sem resposta, usaremos os dias predefinidos. ' + public + '/escolher/' + token(week))
     query = urlencode({'phone': phone, 'apikey': key, 'text': text})
     try:

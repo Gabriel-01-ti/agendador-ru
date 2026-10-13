@@ -17,8 +17,8 @@ Em [Environment](https://dashboard.render.com/web/srv-dap7l2egekts73833d4g/env),
 | STATE_TOKEN | Token privado restrito a este repositório, com Contents: Read and write |
 | AUTOMATION_ENABLED | false |
 | PUBLIC_URL | https://agendador-ru.onrender.com |
-| BOOK_TIME | 15:00 |
-| REMINDER_TIME | 09:00 |
+| REMINDER_ENABLED | false |
+| REMINDER_TIME | 08:00 (apenas se ativar o lembrete opcional) |
 | CUTOFF_TIME | 15:55 |
 
 Crie um token **fine-grained** em GitHub → Settings → Developer settings → Personal access tokens, escolhendo **Only select repositories → agendador-ru**, permissão **Contents: Read and write** e uma validade que você possa renovar. O site usa esse token para salvar os dias cifrados em `runtime/state.enc`. Não dê acesso aos demais repositórios. Guarde o token apenas no campo privado do Render. Se expirar, as escolhas e execuções falharão até a renovação.
@@ -32,13 +32,13 @@ Abra [Actions secrets](https://github.com/Gabriel-01-ti/agendador-ru/settings/se
 - `RU_USER`: usuário do site do RU.
 - `RU_PASSWORD`: senha do RU, salva apenas como Secret.
 - `APP_SECRET`: exatamente o mesmo segredo do Render.
-- `CALLMEBOT_PHONE`: seu número com código do país, por exemplo +55DDDNUMERO.
-- `CALLMEBOT_APIKEY`: chave obtida após sua autorização no WhatsApp.
 - `SCHEDULE_ENABLED`: `true`, somente quando a configuração estiver completa.
 
 O workflow usa o `GITHUB_TOKEN` temporário do próprio GitHub para a persistência. Não precisa copiar o token do Render para os Secrets de Actions. Em Settings → Actions → General, permita execução dos workflows e gravação de conteúdo se as políticas da conta estiverem bloqueando a permissão do workflow.
 
-## 3. WhatsApp gratuito para seu próprio número
+## 3. WhatsApp opcional para seu próprio número
+
+A reserva automática não depende de WhatsApp. O workflow semanal usa `REMINDER_ENABLED=false` e não envia mensagens. As instruções abaixo só são necessárias se decidir ativar lembretes separadamente.
 
 O [CallMeBot](https://www.callmebot.com/blog/free-api-whatsapp-messages/) oferece uma API gratuita para uso pessoal. Ele não é a API oficial do WhatsApp e a disponibilidade depende desse serviço.
 
@@ -53,7 +53,10 @@ Não envie a chave nem sua senha por chat. O serviço recebe seu número e o avi
 1. Salve e faça o deploy no Render.
 2. Abra `/semana`, entre com `admin` e sua senha nova, e salve os dias predefinidos.
 3. Em [Actions](https://github.com/Gabriel-01-ti/agendador-ru/actions), abra **Programação gratuita do RU → Run workflow** e mantenha **Verificar configuração** marcado. Essa verificação não envia mensagens nem faz reservas.
-4. Aos domingos, o aviso é previsto para 09h17. As escolhas fecham às 15h. A primeira tentativa de execução é prevista para 15h17, com um ciclo posterior às 15h37. Se não responder, valem os dias predefinidos. Todos desmarcados significa não reservar naquela semana.
+4. Todo domingo às **09h00 de Brasília**, o runner tentará reservar os almoços da semana seguinte nos dias predefinidos já salvos. Não precisa abrir o site ou responder a mensagens. Todos desmarcados significa não reservar naquela semana.
+5. O GitHub recebe um disparo antecipado às 08h17; se o runner começar antes das 09h, ele aguarda até esse horário. Há disparos adicionais às 09h00, 09h17, 09h37, 10h17, 12h17 e 15h17 para recuperar uma execução que não começou. Uma semana já iniciada não é reservada novamente.
+
+O horário de reserva está fixado em `weekly.booking_time()`, compartilhado pelo painel e pelo runner. A variável antiga `BOOK_TIME=15:00` do Render não altera mais o horário. O deploy do código atualiza a página. Alterações na rotina disparam uma verificação automática de Secrets e persistência, **sem fazer reservas**.
 
 Os horários são de Brasília. GitHub Actions pode atrasar ou descartar execuções em períodos de carga; não oferece garantia de pontualidade. Novas tentativas de reserva não começam a partir das 15h55; uma ação já em andamento pode terminar depois. Confira o histórico e o RU se houver falha. Após uma tentativa iniciada, o estado persistente evita nova execução automática da mesma semana, inclusive após reinicialização. Em resposta ambígua, confira o RU antes de repetir manualmente.
 

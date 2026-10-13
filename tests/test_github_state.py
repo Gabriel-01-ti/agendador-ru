@@ -35,7 +35,7 @@ class GitHubStateTests(unittest.TestCase):
         self.assertEqual(weekly.defaults(),[0,2])
         self.assertEqual(self.writes,writes)
         week=date(2026,10,5)
-        weekly.choose(week,[1,4],datetime(2026,10,4,14,tzinfo=weekly.TZ))
+        weekly.choose(week,[1,4],datetime(2026,10,4,8,tzinfo=weekly.TZ))
         self.assertEqual(weekly.claim(week),['2026-10-06','2026-10-09'])
         self.assertIsNone(weekly.claim(week))
     def test_conflict_prevents_external_reservation(self):
@@ -44,7 +44,7 @@ class GitHubStateTests(unittest.TestCase):
         self.conflict=True
         calls=[]
         with self.assertRaises(RuntimeError):
-            worker.tick(datetime(2026,10,4,15,tzinfo=weekly.TZ),lambda *args,**kwargs:calls.append(args))
+            worker.tick(datetime(2026,10,4,9,tzinfo=weekly.TZ),lambda *args,**kwargs:calls.append(args))
         self.assertEqual(calls,[])
         self.conflict=False
         self.assertIsNone(weekly.state(week)['status'])
@@ -60,7 +60,7 @@ class GitHubStateTests(unittest.TestCase):
             tick.assert_not_called()
     def test_disabled_schedule_does_not_access_state(self):
         with patch.dict(os.environ, {'SCHEDULE_ENABLED':'false'}), patch('worker.tick') as tick:
-            self.assertEqual(scheduled.main(),0)
+            self.assertEqual(scheduled.main(),1)
             tick.assert_not_called()
 
 class WhatsAppTests(unittest.TestCase):

@@ -882,8 +882,9 @@ def semana():
     except RuntimeError as exc:
         return render_template("setup.html", error=str(exc))
     return render_template("weekly.html", defaults=defaults, row=row, history=history, reservation_tests=reservation_tests,
-                           week=week.isoformat(), booking=weekly.hour("BOOK_TIME", "15:00").strftime("%H:%M"),
-                           reminder=weekly.hour("REMINDER_TIME", "09:00").strftime("%H:%M"))
+                           week=week.isoformat(), booking=weekly.booking_time().strftime("%H:%M"),
+                           reminder=weekly.hour("REMINDER_TIME", "08:00").strftime("%H:%M"),
+                           reminder_enabled=weekly.reminders_enabled())
 
 @app.route("/escolher/<token>", methods=["GET", "POST"])
 def escolher(token):
