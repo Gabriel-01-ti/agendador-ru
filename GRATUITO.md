@@ -66,6 +66,12 @@ Se o serviço do WhatsApp falhar, as reservas continuam usando os dias predefini
 
 Fontes: [GitHub: gratuidade](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [GitHub: limites do agendamento](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule), [CallMeBot](https://www.callmebot.com/blog/free-api-whatsapp-messages/).
 
+## Segundo disparo semanal e recuperação
+
+O workflow **Reserva por solicitação** executa a mesma rotina protegida quando o arquivo `.github/ru-request.json` muda na branch `main`. O campo `target_week` precisa conter a segunda-feira seguinte ao domingo atual, no formato `AAAA-MM-DD`. Solicitações antigas e execuções fora do domingo são recusadas. Os horários, dias salvos e proteção contra duplicação são os mesmos da rotina original.
+
+Este disparo permite que um agendador externo autorizado envie a solicitação semanal às 09h de Brasília sem depender do evento `schedule` do GitHub. Não inclui senhas no arquivo. Ele ainda depende da disponibilidade do GitHub e do RU; confira o resultado da execução para confirmar as reservas.
+
 ## Teste de reserva real em qualquer dia
 
 Para testar a automação completa agora, abra Actions → **Teste real de reserva → Run workflow**. Informe no campo `data_almoco` a data de um almoço futuro, no formato `AAAA-MM-DD`, e execute. O GitHub usará a conta salva nos Secrets e tentará reservar **somente esse almoço**, imediatamente, mesmo fora do domingo e do horário da rotina. Não é uma simulação e não depende do CallMeBot.

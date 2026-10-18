@@ -50,6 +50,8 @@ def tick(clock=None, runner=None, sender=None):
             except Exception:
                 results = [{'data': d, 'status': 'erro', 'mensagem': 'Execução interrompida. Confira o RU antes de repetir.'} for d in dates]
             weekly.finish(week, results)
+            for item in results:
+                log.info('Almoço %s: %s', item.get('data', '?'), item.get('status', 'sem confirmação'))
             log.info('Semana %s processada. Consulte o painel.', week)
             return 'concluído' if all(x['status'] == 'ok' for x in results) else 'verificar no RU'
     except weekly.ExecutionBusy:
